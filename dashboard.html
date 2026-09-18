@@ -87,27 +87,33 @@
 <body>
 
 <h1>생산 지표 Dashboard</h1>
-<p class="subtitle">SP삼화 생산부서 — 구분(공장) · 월별 생산량 / 생산성 / 인건비 / 간접비 / 단위당 간접비 / 작업시간 / 작업인원</p>
+<p class="subtitle">SP삼화 생산부서 — 부서 구분 · 연도/월별 생산량 / 생산성 / 단위당 간접비 / 간접비 / 작업시간 / 인원현황</p>
 
 <div class="banner">
   ⚠️ 현재 화면은 <b>샘플(목업) 데이터</b>입니다. 2일차에 실제 생산지표 관리 엑셀 데이터로 교체 예정입니다.<br>
-  ⚠️ '수성', '수지' 팀은 <b>삼화생산계 · 안산공장 · 수지생산계에 중복 집계</b>된 상태로 임시 반영했습니다 (2일차 재확인 예정). 삼화생산계 = 안산공장 + 공주공장.<br>
-  ⚠️ <b>단위당 간접비</b> = 총간접비(인건비+경비) ÷ 생산량 (원/L). <b>생산량(A/B/C부)</b>, <b>작업인원(6급직/계약직)</b> 구성비는 샘플로 임의 배분했습니다 — 실제 비율로 교체 필요.
+  ⚠️ '수성', '수지' 팀은 <b>삼화생산계 · 안산공장 · 수지에 중복 집계</b>된 상태로 임시 반영했습니다 (2일차 재확인 예정). 삼화생산계 = 안산공장 + 공주공장.<br>
+  ⚠️ <b>단위당 간접비</b> = 총간접비(인건비+경비) ÷ 생산량 (원/L). <b>생산량(A/B/C부)</b>, <b>인원현황(6급직/계약직)</b> 구성비는 샘플로 임의 배분했습니다 — 실제 비율로 교체 필요.
+</div>
+
+<div class="controls">
+  <span class="control-label">년도</span>
+  <select id="yearSelect"></select>
+  <span class="control-label" style="margin-left:8px;">월</span>
+  <select id="monthSelect"></select>
+</div>
+<p class="hint" id="yearHint" style="margin:-6px 0 12px;"></p>
+
+<div class="controls">
+  <span class="control-label">지표</span>
+  <select id="metricSelect"></select>
+  <div class="spacer"></div>
+  <span class="control-label" id="subFilterLabel">세부구분</span>
+  <div class="tab-group" id="subTabs"></div>
 </div>
 
 <div class="controls">
   <span class="control-label">구분</span>
-  <div class="tab-group" id="scopeTabs"></div>
-  <span class="control-label" style="margin-left:8px;">월</span>
-  <select id="monthSelect"></select>
-</div>
-
-<div class="controls">
-  <span class="control-label">지표</span>
-  <div class="tab-group" id="metricTabs"></div>
-  <div class="spacer"></div>
-  <span class="control-label" id="subFilterLabel">세부구분</span>
-  <div class="tab-group" id="subTabs"></div>
+  <select id="scopeSelect"></select>
 </div>
 
 <div class="cards-grid" id="summaryCards"></div>
@@ -150,17 +156,23 @@ const SCOPE_TEAM_MAP = {
   '삼화생산계': ['건축','공업','수성','수지','공주','분체'],
   '안산공장': ['건축','공업','수성','수지'],
   '공주공장': ['공주','분체'],
-  '수지생산계': ['수성','수지'],
   '외주': ['임가공','OEM','ODM'],
+  '수지': ['수성','수지'],
 };
-const SCOPES = ['전체', ...Object.keys(SCOPE_TEAM_MAP)];
+const SCOPES = ['전체','삼화생산계','안산공장','공주공장','외주','수지'];
 const ALL_TEAMS = [...new Set(Object.values(SCOPE_TEAM_MAP).flat())];
 const MONTHS_ALL = Array.from({length:12},(_,i)=>i+1);
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = [CURRENT_YEAR];
 
-const METRICS = ['생산량','생산성','인건비','간접비','단위당간접비','작업시간','작업인원'];
+const METRICS = ['생산량','생산성','단위당간접비','간접비','작업시간','작업인원'];
 const UNIT = {
   생산량:'L', 생산성:'L/hr', 인건비:'원', 간접비:'원',
   단위당간접비:'원/L', 작업시간:'hr', 작업인원:'명',
+};
+const METRIC_LABELS = {
+  생산량:'생산량', 생산성:'생산성', 단위당간접비:'단위당 간접비',
+  간접비:'간접비', 작업시간:'작업시간', 작업인원:'인원현황',
 };
 const SUB_FILTERS = {
   생산량: ['전체','A부','B부','C부'],
@@ -362,7 +374,7 @@ function monthLabel(m){ return m==='all' ? '전체' : m+'월'; }
 function subLabelFor(metric, sub){ return (SUB_FILTERS[metric] && sub) ? ` · ${sub}` : ''; }
 
 /* ---------- 상태 ---------- */
-const state = { scope:'전체', month:new Date().getMonth()+1 || 1, metric:'생산량', sub:'전체' };
+const state = { year:CURRENT_YEAR, scope:'전체', month:new Date().getMonth()+1 || 1, metric:'생산량', sub:'전체' };
 if(state.month<1||state.month>12) state.month=1;
 
 /* ---------- 컨트롤 렌더 ---------- */
@@ -375,6 +387,22 @@ function buildTabs(container, items, activeVal, onClick, extraClass){
     btn.onclick=()=>onClick(v);
     container.appendChild(btn);
   });
+}
+function buildYearSelect(){
+  const sel=document.getElementById('yearSelect');
+  sel.innerHTML='';
+  YEARS.forEach(y=>{
+    const opt=document.createElement('option');
+    opt.value=y; opt.textContent=y+'년';
+    if(y===state.year) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=>{
+    state.year=parseInt(sel.value,10);
+    render();
+  };
+  document.getElementById('yearHint').textContent =
+    `※ 연도별 데이터는 아직 준비되지 않아 현재는 ${CURRENT_YEAR}년만 선택 가능합니다 (추후 연도 데이터 추가 예정).`;
 }
 function buildMonthSelect(){
   const sel=document.getElementById('monthSelect');
@@ -393,6 +421,28 @@ function buildMonthSelect(){
     state.month = v==='all' ? 'all' : parseInt(v,10);
     render();
   };
+}
+function buildMetricSelect(){
+  const sel=document.getElementById('metricSelect');
+  sel.innerHTML='';
+  METRICS.forEach(m=>{
+    const opt=document.createElement('option');
+    opt.value=m; opt.textContent=METRIC_LABELS[m];
+    if(m===state.metric) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=> selectMetric(sel.value);
+}
+function buildScopeSelect(){
+  const sel=document.getElementById('scopeSelect');
+  sel.innerHTML='';
+  SCOPES.forEach(s=>{
+    const opt=document.createElement('option');
+    opt.value=s; opt.textContent=s;
+    if(s===state.scope) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=> selectScope(sel.value);
 }
 function renderSubTabs(){
   const wrap = document.getElementById('subTabs');
@@ -418,7 +468,7 @@ function renderCards(){
     const card = document.createElement('div');
     card.className='card';
     card.innerHTML = `
-      <h3>${metric} <span style="font-weight:400;">(${unit})</span></h3>
+      <h3>${METRIC_LABELS[metric]} <span style="font-weight:400;">(${unit})</span></h3>
       <div class="main-val">${fmtNum(d.실적)} <span style="font-size:12px; color:var(--text-muted); font-weight:400;">${unit}</span></div>
       <div class="row"><span>목표</span><span>${fmtNum(d.목표)} ${unit}</span></div>
       <div class="row"><span>전년도 실적</span><span>${fmtNum(d.전년도)} ${unit}</span></div>
@@ -436,7 +486,7 @@ function renderTable(){
   const sub = SUB_FILTERS[metric] ? state.sub : undefined;
   const unit = UNIT[metric];
   document.getElementById('teamTableTitle').textContent =
-    `팀별 상세 — ${metric}${subLabelFor(metric,sub)} (${monthLabel(state.month)})`;
+    `팀별 상세 — ${METRIC_LABELS[metric]}${subLabelFor(metric,sub)} (${monthLabel(state.month)})`;
   const body = document.getElementById('teamTableBody');
   body.innerHTML='';
   teams.forEach(team=>{
@@ -472,7 +522,7 @@ function renderBarChart(){
   const metric = state.metric;
   const sub = SUB_FILTERS[metric] ? state.sub : undefined;
   document.getElementById('barChartTitle').textContent =
-    `팀별 비교 — ${metric}${subLabelFor(metric,sub)} 실적 (${monthLabel(state.month)})`;
+    `팀별 비교 — ${METRIC_LABELS[metric]}${subLabelFor(metric,sub)} 실적 (${monthLabel(state.month)})`;
   const values = teams.map(t=>teamMetric(t, state.month, metric, sub).실적);
   const w=560,h=280,pad={top:20,right:16,bottom:44,left:64};
   const chartW=w-pad.left-pad.right, chartH=h-pad.top-pad.bottom;
@@ -505,7 +555,7 @@ function renderLineChart(){
   const metric = state.metric;
   const sub = SUB_FILTERS[metric] ? state.sub : undefined;
   document.getElementById('lineChartTitle').textContent =
-    `월별 추이 — ${metric}${subLabelFor(metric,sub)} (${state.scope})`;
+    `월별 추이 — ${METRIC_LABELS[metric]}${subLabelFor(metric,sub)} (${state.scope})`;
   const series = {실적:[],목표:[],전년도:[]};
   for(let m=1;m<=12;m++){
     const d = scopeMetric(teams, m, metric, sub);
@@ -556,13 +606,11 @@ function render(){
 /* ---------- 초기화 ---------- */
 function selectScope(v){
   state.scope=v;
-  buildTabs(document.getElementById('scopeTabs'), SCOPES, state.scope, selectScope);
   render();
 }
 function selectMetric(v){
   state.metric=v;
   state.sub = SUB_FILTERS[v] ? '전체' : undefined;
-  buildTabs(document.getElementById('metricTabs'), METRICS, state.metric, selectMetric);
   renderSubTabs();
   render();
 }
@@ -571,8 +619,9 @@ function selectSub(v){
   renderSubTabs();
   render();
 }
-buildTabs(document.getElementById('scopeTabs'), SCOPES, state.scope, selectScope);
-buildTabs(document.getElementById('metricTabs'), METRICS, state.metric, selectMetric);
+buildYearSelect();
+buildScopeSelect();
+buildMetricSelect();
 buildMonthSelect();
 renderSubTabs();
 render();
