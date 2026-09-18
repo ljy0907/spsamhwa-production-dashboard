@@ -41,7 +41,8 @@
     border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:13px;
     background:#fff; color:var(--text);
   }
-  .spacer{flex:1;}
+  .controls-line{display:flex; align-items:center; gap:8px; width:100%; flex-wrap:wrap;}
+  .controls-line.center{justify-content:center;}
   .cards-grid{
     display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
     gap:14px; margin-bottom:6px;
@@ -82,32 +83,83 @@
   tr:last-child td{border-bottom:none;}
   tfoot td{font-weight:700; background:#f8fafc;}
   footer{color:var(--text-muted); font-size:12px; text-align:center; margin-top:24px; line-height:1.7;}
+
+  .pin-gate{
+    position:fixed; inset:0; z-index:9999;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg);
+  }
+  .pin-gate[hidden]{ display:none !important; }
+  .pin-box{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:32px 28px; width:280px; text-align:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.08);
+  }
+  .pin-box h2{margin:0 0 6px; font-size:18px;}
+  .pin-box p{margin:0 0 16px; font-size:13px; color:var(--text-muted);}
+  .pin-box input{
+    width:100%; box-sizing:border-box; font-size:24px; letter-spacing:12px; text-align:center;
+    padding:10px 0 10px 12px; border:1px solid var(--border); border-radius:8px; margin-bottom:12px;
+  }
+  .pin-box button{
+    width:100%; padding:10px; border:none; border-radius:8px;
+    background:var(--blue); color:#fff; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .pin-box button:hover{opacity:.9;}
+  .pin-error{color:var(--red); font-size:12.5px; margin:10px 0 0 !important;}
 </style>
 </head>
 <body>
 
+<div class="pin-gate" id="pinGate">
+  <div class="pin-box">
+    <h2>접근 인증</h2>
+    <p>PIN 번호 4자리를 입력해주세요.</p>
+    <input type="password" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••">
+    <button id="pinSubmit" type="button">확인</button>
+    <p class="pin-error" id="pinError" hidden></p>
+  </div>
+</div>
+
+<div id="appContent" hidden>
+
 <h1>생산 지표 Dashboard</h1>
-<p class="subtitle">SP삼화 생산부서 — 구분(공장) · 월별 생산량 / 생산성 / 인건비 / 간접비 / 단위당 간접비 / 작업시간 / 작업인원</p>
+<p class="subtitle">SP삼화 생산부서 — 부서 구분 · 연도/월별 생산량 / 생산성 / 단위당 간접비 / 간접비 / 작업시간 / 인원현황</p>
 
 <div class="banner">
   ⚠️ 현재 화면은 <b>샘플(목업) 데이터</b>입니다. 2일차에 실제 생산지표 관리 엑셀 데이터로 교체 예정입니다.<br>
-  ⚠️ '수성', '수지' 팀은 <b>삼화생산계 · 안산공장 · 수지생산계에 중복 집계</b>된 상태로 임시 반영했습니다 (2일차 재확인 예정). 삼화생산계 = 안산공장 + 공주공장.<br>
-  ⚠️ <b>단위당 간접비</b> = 총간접비(인건비+경비) ÷ 생산량 (원/L). <b>생산량(A/B/C부)</b>, <b>작업인원(6급직/계약직)</b> 구성비는 샘플로 임의 배분했습니다 — 실제 비율로 교체 필요.
+  ⚠️ '수성', '수지' 팀은 <b>삼화생산계 · 안산공장 · 수지에 중복 집계</b>된 상태로 임시 반영했습니다 (2일차 재확인 예정). 삼화생산계 = 안산공장 + 공주공장.<br>
+  ⚠️ <b>단위당 간접비</b> = 총간접비(인건비+경비) ÷ 생산량 (원/L). <b>생산량(A/B/C부)</b>, <b>인원현황(6급직/계약직)</b> 구성비는 샘플로 임의 배분했습니다 — 실제 비율로 교체 필요.
 </div>
 
 <div class="controls">
-  <span class="control-label">구분</span>
-  <div class="tab-group" id="scopeTabs"></div>
+  <span class="control-label">년도</span>
+  <select id="yearSelect"></select>
   <span class="control-label" style="margin-left:8px;">월</span>
   <select id="monthSelect"></select>
 </div>
+<p class="hint" id="yearHint" style="margin:-6px 0 12px;"></p>
 
 <div class="controls">
-  <span class="control-label">지표</span>
-  <div class="tab-group" id="metricTabs"></div>
-  <div class="spacer"></div>
-  <span class="control-label" id="subFilterLabel">세부구분</span>
-  <div class="tab-group" id="subTabs"></div>
+  <div class="controls-line">
+    <span class="control-label">지표</span>
+    <select id="metricSelect"></select>
+  </div>
+  <div class="controls-line center">
+    <span class="control-label" id="subFilterLabel">구분</span>
+    <div class="tab-group" id="subTabs"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-line">
+    <span class="control-label">공장구분</span>
+    <select id="scopeSelect"></select>
+  </div>
+  <div class="controls-line center">
+    <span class="control-label">구분</span>
+    <div class="tab-group" id="teamTabs"></div>
+  </div>
 </div>
 
 <div class="cards-grid" id="summaryCards"></div>
@@ -144,28 +196,157 @@
   생산 지표 Dashboard · 1차 산출물(조회 전용) · 데이터 수정(입력/편집) 기능은 2일차 이후 반영 예정
 </footer>
 
+</div>
+
+<script>
+/* ---------- PIN 접근 게이트 ----------
+   정적 페이지(백엔드 없음)이므로 완전한 보안이 아니라
+   가벼운 접근 차단 용도로만 사용합니다. */
+(function(){
+  const PIN_HASH = '16a3e9e922b41fde13be3ae377b18e08d44fb136594e7f9819ff2ac75bab5516'; // SHA-256("1222") — index.html / dashboard.html 공통 PIN
+  const SESSION_KEY = 'spProdDashboardPinOk';
+
+  const gate = document.getElementById('pinGate');
+  const content = document.getElementById('appContent');
+  const input = document.getElementById('pinInput');
+  const submitBtn = document.getElementById('pinSubmit');
+  const errorEl = document.getElementById('pinError');
+
+  // 순수 JS SHA-256 (FIPS 180-4) — file://처럼 Web Crypto API(crypto.subtle)를
+  // 쓸 수 없는(비보안 컨텍스트) 환경에서의 대체용입니다.
+  function sha256HexPure(str){
+    const utf8 = new TextEncoder().encode(str);
+    const K = [
+      0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+      0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+      0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+      0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+      0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+      0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+      0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+      0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+    ];
+    let H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+    const l = utf8.length;
+    const bitLen = l*8;
+    const withOne = l+1;
+    const padLen = (withOne % 64 <= 56) ? 56 - (withOne % 64) : 120 - (withOne % 64);
+    const totalLen = withOne + padLen + 8;
+    const msg = new Uint8Array(totalLen);
+    msg.set(utf8);
+    msg[l] = 0x80;
+    const dv = new DataView(msg.buffer);
+    dv.setUint32(totalLen-4, bitLen >>> 0, false);
+    dv.setUint32(totalLen-8, Math.floor(bitLen / 0x100000000), false);
+    function rotr(x,n){ return (x>>>n) | (x<<(32-n)); }
+    for(let chunk=0; chunk<totalLen; chunk+=64){
+      const w = new Uint32Array(64);
+      for(let i=0;i<16;i++) w[i] = dv.getUint32(chunk+i*4, false);
+      for(let i=16;i<64;i++){
+        const s0 = rotr(w[i-15],7) ^ rotr(w[i-15],18) ^ (w[i-15]>>>3);
+        const s1 = rotr(w[i-2],17) ^ rotr(w[i-2],19) ^ (w[i-2]>>>10);
+        w[i] = (w[i-16] + s0 + w[i-7] + s1) >>> 0;
+      }
+      let [a,b,c,d,e,f,g,h] = H;
+      for(let i=0;i<64;i++){
+        const S1 = rotr(e,6) ^ rotr(e,11) ^ rotr(e,25);
+        const ch = (e & f) ^ (~e & g);
+        const temp1 = (h + S1 + ch + K[i] + w[i]) >>> 0;
+        const S0 = rotr(a,2) ^ rotr(a,13) ^ rotr(a,22);
+        const maj = (a & b) ^ (a & c) ^ (b & c);
+        const temp2 = (S0 + maj) >>> 0;
+        h=g; g=f; f=e; e=(d+temp1)>>>0;
+        d=c; c=b; b=a; a=(temp1+temp2)>>>0;
+      }
+      H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0;
+      H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
+    }
+    return H.map(x=>x.toString(16).padStart(8,'0')).join('');
+  }
+
+  async function sha256Hex(text){
+    if(window.isSecureContext && window.crypto && window.crypto.subtle){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+    return sha256HexPure(text);
+  }
+
+  function unlock(){
+    gate.hidden = true;
+    content.hidden = false;
+  }
+
+  function showError(msg){
+    errorEl.textContent = msg;
+    errorEl.hidden = false;
+  }
+
+  async function tryUnlock(){
+    const val = input.value.trim();
+    if(!/^\d{4}$/.test(val)){
+      showError('PIN은 숫자 4자리로 입력해주세요.');
+      return;
+    }
+    try{
+      const hash = await sha256Hex(val);
+      if(hash === PIN_HASH){
+        sessionStorage.setItem(SESSION_KEY, '1');
+        errorEl.hidden = true;
+        unlock();
+      }else{
+        showError('PIN이 올바르지 않습니다.');
+        input.value = '';
+        input.focus();
+      }
+    }catch(err){
+      showError('PIN 확인 중 오류가 발생했습니다. 다시 시도해주세요.');
+    }
+  }
+
+  if(sessionStorage.getItem(SESSION_KEY) === '1'){
+    unlock();
+  }else{
+    submitBtn.addEventListener('click', tryUnlock);
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+    input.focus();
+  }
+})();
+</script>
+
 <script>
 /* ---------- 조직 구조 (구분 = 공장/사업 단위) ---------- */
 const SCOPE_TEAM_MAP = {
   '삼화생산계': ['건축','공업','수성','수지','공주','분체'],
   '안산공장': ['건축','공업','수성','수지'],
   '공주공장': ['공주','분체'],
-  '수지생산계': ['수성','수지'],
   '외주': ['임가공','OEM','ODM'],
+  '수지': ['수성','수지'],
 };
-const SCOPES = ['전체', ...Object.keys(SCOPE_TEAM_MAP)];
+const SCOPES = ['전체','삼화생산계','안산공장','공주공장','외주','수지'];
 const ALL_TEAMS = [...new Set(Object.values(SCOPE_TEAM_MAP).flat())];
 const MONTHS_ALL = Array.from({length:12},(_,i)=>i+1);
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = [CURRENT_YEAR];
 
-const METRICS = ['생산량','생산성','인건비','간접비','단위당간접비','작업시간','작업인원'];
+const METRICS = ['생산량','생산성','단위당간접비','간접비','작업시간','작업인원'];
 const UNIT = {
   생산량:'L', 생산성:'L/hr', 인건비:'원', 간접비:'원',
   단위당간접비:'원/L', 작업시간:'hr', 작업인원:'명',
+};
+const METRIC_LABELS = {
+  생산량:'생산량', 생산성:'생산성', 단위당간접비:'단위당 간접비',
+  간접비:'간접비', 작업시간:'작업시간', 작업인원:'인원현황',
 };
 const SUB_FILTERS = {
   생산량: ['전체','A부','B부','C부'],
   간접비: ['전체','인건비','경비'],
   작업인원: ['전체','6급직','계약직'],
+};
+const TEAM_LABELS = {
+  건축:'건축생산팀', 공업:'공업생산팀', 수성:'수성생산팀', 수지:'수지생산팀',
+  공주:'공주생산팀', 분체:'분체생산팀',
+  임가공:'임가공', OEM:'OEM', ODM:'ODM',
 };
 
 /* ---------- 시드 기반 난수 (팀마다 일정한 샘플 데이터) ---------- */
@@ -263,6 +444,11 @@ ALL_TEAMS.forEach(t=>DATA[t]=genTeamData(t));
 
 /* ---------- 집계 ---------- */
 function teamsForScope(scope){ return scope==='전체' ? ALL_TEAMS : SCOPE_TEAM_MAP[scope]; }
+function activeTeams(){
+  const base = teamsForScope(state.scope);
+  if(state.team && state.team!=='전체' && base.includes(state.team)) return [state.team];
+  return base;
+}
 function monthsFor(monthSel){ return monthSel==='all' ? MONTHS_ALL : [monthSel]; }
 
 function getFieldRaw(team, month, metric, sub){
@@ -360,9 +546,10 @@ function rateClass(v, isAchv){
 }
 function monthLabel(m){ return m==='all' ? '전체' : m+'월'; }
 function subLabelFor(metric, sub){ return (SUB_FILTERS[metric] && sub) ? ` · ${sub}` : ''; }
+function teamLabelFor(){ return (state.team && state.team!=='전체') ? ` · ${TEAM_LABELS[state.team]||state.team}` : ''; }
 
 /* ---------- 상태 ---------- */
-const state = { scope:'전체', month:new Date().getMonth()+1 || 1, metric:'생산량', sub:'전체' };
+const state = { year:CURRENT_YEAR, scope:'전체', team:'전체', month:new Date().getMonth()+1 || 1, metric:'생산량', sub:'전체' };
 if(state.month<1||state.month>12) state.month=1;
 
 /* ---------- 컨트롤 렌더 ---------- */
@@ -375,6 +562,22 @@ function buildTabs(container, items, activeVal, onClick, extraClass){
     btn.onclick=()=>onClick(v);
     container.appendChild(btn);
   });
+}
+function buildYearSelect(){
+  const sel=document.getElementById('yearSelect');
+  sel.innerHTML='';
+  YEARS.forEach(y=>{
+    const opt=document.createElement('option');
+    opt.value=y; opt.textContent=y+'년';
+    if(y===state.year) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=>{
+    state.year=parseInt(sel.value,10);
+    render();
+  };
+  document.getElementById('yearHint').textContent =
+    `※ 연도별 데이터는 아직 준비되지 않아 현재는 ${CURRENT_YEAR}년만 선택 가능합니다 (추후 연도 데이터 추가 예정).`;
 }
 function buildMonthSelect(){
   const sel=document.getElementById('monthSelect');
@@ -394,6 +597,28 @@ function buildMonthSelect(){
     render();
   };
 }
+function buildMetricSelect(){
+  const sel=document.getElementById('metricSelect');
+  sel.innerHTML='';
+  METRICS.forEach(m=>{
+    const opt=document.createElement('option');
+    opt.value=m; opt.textContent=METRIC_LABELS[m];
+    if(m===state.metric) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=> selectMetric(sel.value);
+}
+function buildScopeSelect(){
+  const sel=document.getElementById('scopeSelect');
+  sel.innerHTML='';
+  SCOPES.forEach(s=>{
+    const opt=document.createElement('option');
+    opt.value=s; opt.textContent=s;
+    if(s===state.scope) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=> selectScope(sel.value);
+}
 function renderSubTabs(){
   const wrap = document.getElementById('subTabs');
   const label = document.getElementById('subFilterLabel');
@@ -405,10 +630,23 @@ function renderSubTabs(){
   label.style.visibility='visible';
   buildTabs(wrap, opts, state.sub, selectSub, 'sub');
 }
+function buildTeamTabs(){
+  const wrap = document.getElementById('teamTabs');
+  wrap.innerHTML='';
+  const teams = teamsForScope(state.scope);
+  const items = [{value:'전체', label:'전체'}, ...teams.map(t=>({value:t, label:TEAM_LABELS[t]||t}))];
+  items.forEach(({value,label})=>{
+    const btn=document.createElement('button');
+    btn.className='tab-btn'+(value===state.team?' active':'');
+    btn.textContent=label;
+    btn.onclick=()=>selectTeam(value);
+    wrap.appendChild(btn);
+  });
+}
 
 /* ---------- 요약 카드 (항상 '전체' 기준) ---------- */
 function renderCards(){
-  const teams = teamsForScope(state.scope);
+  const teams = activeTeams();
   const grid = document.getElementById('summaryCards');
   grid.innerHTML='';
   METRICS.forEach(metric=>{
@@ -418,7 +656,7 @@ function renderCards(){
     const card = document.createElement('div');
     card.className='card';
     card.innerHTML = `
-      <h3>${metric} <span style="font-weight:400;">(${unit})</span></h3>
+      <h3>${METRIC_LABELS[metric]} <span style="font-weight:400;">(${unit})</span></h3>
       <div class="main-val">${fmtNum(d.실적)} <span style="font-size:12px; color:var(--text-muted); font-weight:400;">${unit}</span></div>
       <div class="row"><span>목표</span><span>${fmtNum(d.목표)} ${unit}</span></div>
       <div class="row"><span>전년도 실적</span><span>${fmtNum(d.전년도)} ${unit}</span></div>
@@ -429,21 +667,21 @@ function renderCards(){
   });
 }
 
-/* ---------- 팀별 상세 표 (선택한 지표 · 세부구분 반영) ---------- */
+/* ---------- 팀별 상세 표 (선택한 지표 · 구분 반영) ---------- */
 function renderTable(){
-  const teams = teamsForScope(state.scope);
+  const teams = activeTeams();
   const metric = state.metric;
   const sub = SUB_FILTERS[metric] ? state.sub : undefined;
   const unit = UNIT[metric];
   document.getElementById('teamTableTitle').textContent =
-    `팀별 상세 — ${metric}${subLabelFor(metric,sub)} (${monthLabel(state.month)})`;
+    `팀별 상세 — ${METRIC_LABELS[metric]}${subLabelFor(metric,sub)}${teamLabelFor()} (${monthLabel(state.month)})`;
   const body = document.getElementById('teamTableBody');
   body.innerHTML='';
   teams.forEach(team=>{
     const d = deriveRates(teamMetric(team, state.month, metric, sub));
     const tr=document.createElement('tr');
     tr.innerHTML = `
-      <td>${team}</td>
+      <td>${TEAM_LABELS[team]||team}</td>
       <td>${fmtNum(d.실적)} ${unit}</td>
       <td>${fmtNum(d.목표)} ${unit}</td>
       <td>${fmtNum(d.전년도)} ${unit}</td>
@@ -454,9 +692,10 @@ function renderTable(){
   });
   const total = deriveRates(scopeMetric(teams, state.month, metric, sub));
   const foot = document.getElementById('teamTableFoot');
+  const footLabel = (state.team && state.team!=='전체') ? (TEAM_LABELS[state.team]||state.team) : state.scope;
   foot.innerHTML = `
     <tr>
-      <td>${state.scope} 합계</td>
+      <td>${footLabel} 합계</td>
       <td>${fmtNum(total.실적)} ${unit}</td>
       <td>${fmtNum(total.목표)} ${unit}</td>
       <td>${fmtNum(total.전년도)} ${unit}</td>
@@ -468,11 +707,11 @@ function renderTable(){
 
 /* ---------- 차트: 팀별 비교 (막대) ---------- */
 function renderBarChart(){
-  const teams = teamsForScope(state.scope);
+  const teams = activeTeams();
   const metric = state.metric;
   const sub = SUB_FILTERS[metric] ? state.sub : undefined;
   document.getElementById('barChartTitle').textContent =
-    `팀별 비교 — ${metric}${subLabelFor(metric,sub)} 실적 (${monthLabel(state.month)})`;
+    `팀별 비교 — ${METRIC_LABELS[metric]}${subLabelFor(metric,sub)}${teamLabelFor()} 실적 (${monthLabel(state.month)})`;
   const values = teams.map(t=>teamMetric(t, state.month, metric, sub).실적);
   const w=560,h=280,pad={top:20,right:16,bottom:44,left:64};
   const chartW=w-pad.left-pad.right, chartH=h-pad.top-pad.bottom;
@@ -493,7 +732,7 @@ function renderBarChart(){
     const y=pad.top+chartH-barH;
     s+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="4" fill="#2563eb"/>`;
     s+=`<text x="${(x+barW/2).toFixed(1)}" y="${(y-6).toFixed(1)}" font-size="10.5" fill="#1e293b" text-anchor="middle">${fmtShort(val)}</text>`;
-    s+=`<text x="${(x+barW/2).toFixed(1)}" y="${h-pad.bottom+18}" font-size="11.5" fill="#334155" text-anchor="middle">${team}</text>`;
+    s+=`<text x="${(x+barW/2).toFixed(1)}" y="${h-pad.bottom+18}" font-size="11.5" fill="#334155" text-anchor="middle">${TEAM_LABELS[team]||team}</text>`;
   });
   s+=`</svg>`;
   document.getElementById('barChartContainer').innerHTML=s;
@@ -501,11 +740,12 @@ function renderBarChart(){
 
 /* ---------- 차트: 월별 추이 (라인) ---------- */
 function renderLineChart(){
-  const teams = teamsForScope(state.scope);
+  const teams = activeTeams();
   const metric = state.metric;
   const sub = SUB_FILTERS[metric] ? state.sub : undefined;
+  const lineScopeLabel = (state.team && state.team!=='전체') ? (TEAM_LABELS[state.team]||state.team) : state.scope;
   document.getElementById('lineChartTitle').textContent =
-    `월별 추이 — ${metric}${subLabelFor(metric,sub)} (${state.scope})`;
+    `월별 추이 — ${METRIC_LABELS[metric]}${subLabelFor(metric,sub)} (${lineScopeLabel})`;
   const series = {실적:[],목표:[],전년도:[]};
   for(let m=1;m<=12;m++){
     const d = scopeMetric(teams, m, metric, sub);
@@ -556,13 +796,18 @@ function render(){
 /* ---------- 초기화 ---------- */
 function selectScope(v){
   state.scope=v;
-  buildTabs(document.getElementById('scopeTabs'), SCOPES, state.scope, selectScope);
+  state.team='전체';
+  buildTeamTabs();
+  render();
+}
+function selectTeam(v){
+  state.team=v;
+  buildTeamTabs();
   render();
 }
 function selectMetric(v){
   state.metric=v;
   state.sub = SUB_FILTERS[v] ? '전체' : undefined;
-  buildTabs(document.getElementById('metricTabs'), METRICS, state.metric, selectMetric);
   renderSubTabs();
   render();
 }
@@ -571,10 +816,12 @@ function selectSub(v){
   renderSubTabs();
   render();
 }
-buildTabs(document.getElementById('scopeTabs'), SCOPES, state.scope, selectScope);
-buildTabs(document.getElementById('metricTabs'), METRICS, state.metric, selectMetric);
+buildYearSelect();
+buildScopeSelect();
+buildMetricSelect();
 buildMonthSelect();
 renderSubTabs();
+buildTeamTabs();
 render();
 </script>
 </body>
