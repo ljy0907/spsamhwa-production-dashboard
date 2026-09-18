@@ -47,3 +47,24 @@ model MetricRecord {
   @@unique([year, month, teamId, metric, sub])
   @@index([year, month, metric])
 }
+
+// 사용자 계정. 비밀번호는 평문 저장 없이 scrypt 해시(+salt)로만 저장.
+// 비밀번호 찾기는 생년월일(YYYY-MM-DD)로 본인 확인 후 재설정하는 방식.
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  passwordSalt String
+  passwordHash String
+  birthDate    String
+  createdAt    DateTime  @default(now())
+  sessions     Session[]
+}
+
+// DB 기반 세션. 쿠키에는 이 token만 저장하고, 매 요청마다 여기서 조회/만료 확인.
+model Session {
+  token     String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

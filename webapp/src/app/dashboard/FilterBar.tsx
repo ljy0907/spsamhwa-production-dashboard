@@ -7,6 +7,7 @@ import {
   METRIC_LABELS,
   SUB_FILTERS,
   TEAM_LABELS,
+  TEAM_DRILLDOWN_SCOPES,
   teamsForScope,
   type Metric,
 } from "@/lib/metrics-constants";
@@ -70,6 +71,7 @@ export default function FilterBar({ years, year, month, metric, sub, scope, team
 
   const subOptions = SUB_FILTERS[metric];
   const teamOptions = teamsForScope(scope);
+  const showTeamTabs = TEAM_DRILLDOWN_SCOPES.includes(scope);
 
   return (
     <div className="mb-3 flex flex-col gap-3">
@@ -145,19 +147,21 @@ export default function FilterBar({ years, year, month, metric, sub, scope, team
             ))}
           </select>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="mr-1 text-[13px] text-slate-500">구분</span>
-          <div className="flex flex-wrap justify-center gap-1.5">
-            <TabButton active={team === "전체"} onClick={() => navigate({ team: "전체" })}>
-              전체
-            </TabButton>
-            {teamOptions.map((t) => (
-              <TabButton key={t} active={t === team} onClick={() => navigate({ team: t })}>
-                {TEAM_LABELS[t] ?? t}
+        {showTeamTabs && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="mr-1 text-[13px] text-slate-500">구분</span>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              <TabButton active={team === "전체"} onClick={() => navigate({ team: "전체" })}>
+                전체
               </TabButton>
-            ))}
+              {teamOptions.map((t) => (
+                <TabButton key={t} active={t === team} onClick={() => navigate({ team: t })}>
+                  {TEAM_LABELS[t] ?? t}
+                </TabButton>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

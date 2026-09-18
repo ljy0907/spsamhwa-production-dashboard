@@ -1,51 +1,63 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { prisma } from "@/lib/db";
 
 export const SESSION_COOKIE = "dashboard_session";
+const SESSION_DAYS = 7;
 
-function getPassword(): string {
-  const password = process.env.DASHBOARD_PASSWORD;
-  if (!password) {
-    throw new Error("DASHBOARD_PASSWORD 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.");
-  }
-  return password;
+function hashPassword(password: string, salt: string): string {
+  return scryptSync(password, salt, 64).toString("hex");
 }
 
-// 세션 쿠키에는 비밀번호 원문 대신, 비밀번호로부터 계산한 토큰만 저장합니다.
-// 이 토큰은 서버(DASHBOARD_PASSWORD를 아는 쪽)만 재계산할 수 있어 위조가 불가능합니다.
-function expectedSessionToken(): string {
-  return createHash("sha256").update(getPassword()).digest("hex");
+export function createPasswordHash(password: string) {
+  const passwordSalt = randomBytes(16).toString("hex");
+  const passwordHash = hashPassword(password, passwordSalt);
+  return { passwordSalt, passwordHash };
 }
 
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
+export function verifyPassword(password: string, passwordSalt: string, passwordHash: string): boolean {
+  const candidate = Buffer.from(hashPassword(password, passwordSalt), "hex");
+  const expected = Buffer.from(passwordHash, "hex");
+  if (candidate.length !== expected.length) return false;
+  return timingSafeEqual(candidate, expected);
 }
 
-export function checkPassword(input: string): boolean {
-  return safeEqual(input, getPassword());
-}
+export async function createSession(userId: number): Promise<void> {
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  await prisma.session.create({ data: { token, userId, expiresAt } });
 
-export async function createSession(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, expectedSessionToken(), {
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7일
+    maxAge: SESSION_DAYS * 24 * 60 * 60,
   });
 }
 
 export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (token) {
+    await prisma.session.deleteMany({ where: { token } });
+  }
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function hasValidSession(): Promise<boolean> {
+export async function getCurrentUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return false;
-  return safeEqual(token, expectedSessionToken());
+  if (!token) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token },
+    include: { user: true },
+  });
+  if (!session || session.expiresAt < new Date()) return null;
+  return session.user;
+}
+
+export async function hasValidSession(): Promise<boolean> {
+  return (await getCurrentUser()) !== null;
 }

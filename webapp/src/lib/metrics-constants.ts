@@ -21,6 +21,10 @@ export const TEAM_LABELS: Record<string, string> = {
 };
 export const ALL_TEAMS = [...new Set(Object.values(SCOPE_TEAM_MAP).flat())];
 
+// 이 공장구분일 때만 하위 "구분"(팀) 탭을 보여주고 드릴다운을 허용.
+// 전체 / 삼화생산계는 팀 탭 자체를 표시하지 않음.
+export const TEAM_DRILLDOWN_SCOPES = ["안산공장", "공주공장", "외주", "수지"];
+
 export const METRICS = ["생산량", "생산성", "단위당간접비", "간접비", "작업시간", "작업인원"] as const;
 export type Metric = (typeof METRICS)[number];
 
@@ -57,6 +61,7 @@ export function teamsForScope(scope: string): string[] {
 // 공장구분으로 좁힌 팀 목록에서, 특정 팀이 추가로 선택돼 있으면 그 팀 하나로 드릴다운.
 export function activeTeams(scope: string, team: string): string[] {
   const base = teamsForScope(scope);
+  if (!TEAM_DRILLDOWN_SCOPES.includes(scope)) return base;
   if (team && team !== "전체" && base.includes(team)) return [team];
   return base;
 }

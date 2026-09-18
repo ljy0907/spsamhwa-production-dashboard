@@ -7,6 +7,7 @@ import {
   UNIT,
   SUB_FILTERS,
   TEAM_LABELS,
+  TEAM_DRILLDOWN_SCOPES,
   isMetric,
   activeTeams,
   monthsFor,
@@ -45,7 +46,8 @@ export default async function DashboardPage({
   const metric: Metric = isMetric(sp.metric ?? "") ? (sp.metric as Metric) : "생산량";
   const sub = SUB_FILTERS[metric] ? sp.sub || "전체" : undefined;
   const scope = sp.scope || "전체";
-  const team = sp.team || "전체";
+  // 공장구분이 드릴다운 허용 대상이 아니면(전체/삼화생산계) 팀 선택은 무시.
+  const team = TEAM_DRILLDOWN_SCOPES.includes(scope) ? sp.team || "전체" : "전체";
 
   const teams = activeTeams(scope, team);
   const months = monthsFor(month);
