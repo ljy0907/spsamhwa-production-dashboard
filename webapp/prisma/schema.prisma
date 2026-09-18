@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// 팀(부서) 마스터. id는 짧은 코드(건축, 공업, 수성, 수지, 공주, 분체, 임가공, OEM, ODM)를 그대로 사용.
+model Team {
+  id          String         @id
+  displayName String
+  scopes      ScopeTeam[]
+  records     MetricRecord[]
+}
+
+// 공장구분(전체 제외) ↔ 팀 매핑. 수성/수지처럼 한 팀이 여러 구분에 동시 소속되는 걸 표현.
+// (삼화생산계, 안산공장, 공주공장, 외주, 수지)
+model ScopeTeam {
+  scope  String
+  teamId String
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([scope, teamId])
+}
+
+// 팀 × 연 × 월 × 지표(× 세부구분)별 실적/목표/전년도 실적.
+// metric: 생산량 | 작업인원 | 작업시간 | 인건비 | 간접비
+//   생산성, 단위당간접비는 저장하지 않고 조회 시 계산 (생산량÷작업시간, (인건비+간접비)÷생산량)
+// sub: 생산량→전체/A부/B부/C부, 작업인원→전체/6급직/계약직, 그 외 지표는 항상 "전체"
+model MetricRecord {
+  id             Int    @id @default(autoincrement())
+  year           Int
+  month          Int
+  teamId         String
+  team           Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  metric         String
+  sub            String @default("전체")
+  actual         Float
+  target         Float
+  prevYearActual Float
+
+  @@unique([year, month, teamId, metric, sub])
+  @@index([year, month, metric])
+}
